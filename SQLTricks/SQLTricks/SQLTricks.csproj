@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BulkLINQ.cs" />
     <Compile Include="InMemoryDB.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
