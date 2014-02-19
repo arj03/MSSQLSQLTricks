@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BulkLINQ.cs" />
+    <Compile Include="Common.cs" />
     <Compile Include="db.designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
