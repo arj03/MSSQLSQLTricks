@@ -13,12 +13,12 @@ namespace SQLTricks
     {
         public static DateTime MinSQLValue()
         {
-            return new DateTime(System.Data.SqlTypes.SqlDateTime.MinValue.TimeTicks);
+            return new DateTime(System.Data.SqlTypes.SqlDateTime.MinValue.Value.Ticks);
         }
 
         public static DateTime MaxSQLValue()
         {
-            return new DateTime(System.Data.SqlTypes.SqlDateTime.MaxValue.TimeTicks);
+            return new DateTime(System.Data.SqlTypes.SqlDateTime.MaxValue.Value.Ticks);
         }
     }
 }
