@@ -14,11 +14,11 @@ namespace SQLTricks
             context.startTransactions.Add(this.StartTransaction);
             context.endTransactions.Add(this.EndTransaction);
             context.commitTransactions.Add(this.Commit);
-            context.rollbackTransactions.Add(this.Rollback);
         }
 
         // mimic linq
-        Stack<List<T>> uncomittedChanges = new Stack<List<T>>();
+        Stack<List<T>> uncomittedInserts = new Stack<List<T>>();
+        Stack<List<T>> uncomittedDeletes = new Stack<List<T>>();
 
         int uniqueId = 0;
 
@@ -26,8 +26,7 @@ namespace SQLTricks
         {
             var wrapped = FastMember.ObjectAccessor.Create(item);
             wrapped["Id"] = uniqueId++;
-            this.Add(item);
-            uncomittedChanges.Peek().Add(item);
+            uncomittedInserts.Peek().Add(item);
         }
 
         public void DeleteAllOnSubmit(EntitySet<T> items)
@@ -43,54 +42,55 @@ namespace SQLTricks
 
         public void DeleteAllOnSubmit(IEnumerable<T> items)
         {
-            // FIXME: should use transaction
+            var topTransaction = uncomittedDeletes.Peek();
+
             foreach (var item in items)
-                this.Remove(item);
+                topTransaction.Add(item);
         }
 
         public void DeleteOnSubmit(T item)
         {
-            // FIXME: should use transaction
-            this.Remove(item);
+            uncomittedDeletes.Peek().Add(item);
         }
 
         public void StartTransaction()
         {
-            uncomittedChanges.Push(new List<T>());
+            uncomittedInserts.Push(new List<T>());
+            uncomittedDeletes.Push(new List<T>());
         }
 
         public void EndTransaction()
         {
-            uncomittedChanges.Pop();
+            uncomittedInserts.Pop();
+            uncomittedDeletes.Pop();
         }
 
         public void Commit()
         {
-            uncomittedChanges.Peek().Clear();
-        }
+            foreach (var insert in uncomittedInserts.Peek())
+                this.Add(insert);
 
-        public void Rollback()
-        {
-            var latestTransaction = uncomittedChanges.Peek();
-            foreach (var c in latestTransaction)
-                this.Remove(c);
+            uncomittedInserts.Peek().Clear();
+
+            foreach (var delete in uncomittedDeletes.Peek())
+                this.Remove(delete);
+
+            uncomittedDeletes.Peek().Clear();
         }
     }
-
     // this class can be used to simulate a LINQ db data context using simple in memory lists
     public class InMemoryDataContext : IDisposable
     {
         // declare your tables here:
-        //public InMemoryTable<Customer> Customers;
+        public InMemoryTable<Customer> Customers;
 
         public List<Action> startTransactions = new List<Action>();
         public List<Action> commitTransactions = new List<Action>();
-        public List<Action> rollbackTransactions = new List<Action>();
         public List<Action> endTransactions = new List<Action>();
 
         InMemoryDataContext()
         {
-            //Customers = new InMemoryTable<Customer>(this);
+            Customers = new InMemoryTable<Customer>(this);
         }
 
         static InMemoryDataContext instance;
@@ -121,16 +121,8 @@ namespace SQLTricks
                 f();
         }
 
-        public void Rollback()
-        {
-            foreach (var f in instance.rollbackTransactions)
-                f();
-        }
-
         public void Dispose()
         {
-            Rollback();
-
             foreach (var f in instance.endTransactions)
                 f();
         }
