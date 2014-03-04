@@ -7,6 +7,35 @@ using System.Data.Linq;
 
 namespace SQLTricks
 {
+    public class InMemoryIdentityTable<T> : InMemoryTable<T> where T : class
+    {
+        public InMemoryIdentityTable(InMemoryDataContext context, string identityAttribute)
+            : base(context)
+        {
+            this.identityAttribute = identityAttribute;
+        }
+
+        public InMemoryIdentityTable(InMemoryDataContext context)
+            : base(context)
+        {
+            this.identityAttribute = "Id"; // default
+        }
+
+        string identityAttribute = "";
+        int uniqueId = 0;
+
+        public override void InsertOnSubmit(T item)
+        {
+            if (identityAttribute != "")
+            {
+                var wrapped = FastMember.ObjectAccessor.Create(item);
+                wrapped[identityAttribute] = uniqueId++;
+            }
+
+            uncomittedInserts.Peek().Add(item);
+        }
+    }
+
     public class InMemoryTable<T> : List<T> where T : class
     {
         public InMemoryTable(InMemoryDataContext context)
@@ -17,15 +46,11 @@ namespace SQLTricks
         }
 
         // mimic linq
-        Stack<List<T>> uncomittedInserts = new Stack<List<T>>();
-        Stack<List<T>> uncomittedDeletes = new Stack<List<T>>();
+        protected Stack<List<T>> uncomittedInserts = new Stack<List<T>>();
+        protected Stack<List<T>> uncomittedDeletes = new Stack<List<T>>();
 
-        int uniqueId = 0;
-
-        public void InsertOnSubmit(T item)
+        public virtual void InsertOnSubmit(T item)
         {
-            var wrapped = FastMember.ObjectAccessor.Create(item);
-            wrapped["Id"] = uniqueId++;
             uncomittedInserts.Peek().Add(item);
         }
 
@@ -78,11 +103,12 @@ namespace SQLTricks
             uncomittedDeletes.Peek().Clear();
         }
     }
+
     // this class can be used to simulate a LINQ db data context using simple in memory lists
     public class InMemoryDataContext : IDisposable
     {
         // declare your tables here:
-        public InMemoryTable<Customer> Customers;
+        public InMemoryIdentityTable<Customer> Customers;
 
         public List<Action> startTransactions = new List<Action>();
         public List<Action> commitTransactions = new List<Action>();
@@ -90,7 +116,7 @@ namespace SQLTricks
 
         InMemoryDataContext()
         {
-            Customers = new InMemoryTable<Customer>(this);
+            Customers = new InMemoryIdentityTable<Customer>(this);
         }
 
         static InMemoryDataContext instance;
